@@ -1,0 +1,28 @@
+{
+  "name": "formetteapi",
+  "version": "0.0.1",
+  "description": "API for Formette",
+  "main": "index.js",
+  "scripts": {
+    "start": "./node_modules/.bin/serverless offline -s dev",
+    "debug": "export SLS_DEBUG=* && node --debug ./node_modules/.bin/serverless offline -s dev",
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Formette/API.git"
+  },
+  "author": "Vitor Amaral <vitor.works@gmail.com> (vacom.github.io)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Formette/API/issues"
+  },
+  "homepage": "https://github.com/Formette/API#readme",
+  "dependencies": {
+    "lokka": "^1.7.0",
+    "lokka-transport-http": "^1.6.1"
+  },
+  "devDependencies": {
+    "serverless": "^1.23.0"
+  }
+}

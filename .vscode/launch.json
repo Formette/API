@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run API function",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceRoot}/node_modules/.bin/sls",
+      "args": ["invoke", "local", "-f", "api", "--data", "{}"]
+    }
+  ]
+}
