@@ -14,133 +14,120 @@ const client = new Lokka({
   })
 });
 
-//Gets the user ID
-const getUserId = userName => {
-  // return "cj5frzfv11z6y0180k67lraep";
-  const data = [];
-  const query = `
+module.exports.api = (event, context, callback) => {
+  //const data = event;
+  let data = Object.assign({}, querystring.parse(event.body));
+  const userName = event.pathParameters.username;
+  const getEndpoint = event.pathParameters.id;
+  //checks and validates the parameters and the data
+  if (!userName || !getEndpoint || !Object.keys(data).length) {
+    console.error("Validation Failed");
+    callback(null, {
+      statusCode: 400,
+      body: JSON.stringify({
+        error: true,
+        status: 400,
+        message: "Could not execute, missing fields..."
+      })
+    });
+    return;
+  }
+  //verifies the user and gets the user id
+  const getUserQuery = `
   query getUser($userName: String!) {
     User(userName: $userName){
       id
     }
   }
 `;
-
-  const vars = { userName };
-  client.query(query, vars).then(result => {
-    data.push({
-      result
-    });
-  });
-
-  return data;
-};
-
-//gets the form ID to later save the new data
-const getFormId = (userId, endpoint) => {
-  //return 'cj5frzfv11z6y0180k67lraep/simpi';
-  //return `${userId}/${endpoint}`;
-  //return "cj8lwcpl0ihit0110vpgz92yc";
-
-  const setEndpoint = `${userId}/${endpoint}`;
-  const data = [];
-
-  const query = `
-  query getForm($setEndpoint: String!) {
-    Forms(endpoint: $setEndpoint) {
-      id
-      isDisabled
+  const getUserQueryVars = { userName };
+  client
+    .query(getUserQuery, getUserQueryVars)
+    .then(res => {
+      const userId = res.User.id;
+      const setEndpoint = `${userId}/${getEndpoint}`;
+      //verifies the form and gets the form id
+      const getFormQuery = `
+    query getForm($setEndpoint: String!) {
+      Forms(endpoint: $setEndpoint) {
+        id
+        isDisabled
+      }
     }
-  }
-`;
+  `;
+      const getFormQueryVars = { setEndpoint };
+      client
+        .query(getFormQuery, getFormQueryVars)
+        .then(res => {
+          const formId = res.Forms.id;
+          const isDisabled = res.Forms.isDisabled;
+          //checks if the form is enable to receive data submissions
+          if (isDisabled) {
+            callback(null, {
+              statusCode: 404,
+              body: JSON.stringify({
+                error: true,
+                status: 404,
+                message: "At this moment the form is not accepting submissions."
+              })
+            });
+            return;
+          }
 
-  const vars = { setEndpoint };
-  client.query(query, vars).then(result => {
-    data.push({
-      result
-    });
-  });
-
-  return data;
-};
-
-module.exports.api = (event, context, callback) => {
-  //const data = event;
-  let data = Object.assign({}, querystring.parse(event.body));
-  const getEndpoint = event.pathParameters.id;
-  const getUsername = event.pathParameters.username;
-
-  const user = getUserId(getUsername);
-  const form = getFormId(user.id, getEndpoint);
-
-  const response = {
-    statusCode: 200,
-    body: JSON.stringify({
-      user,
-      form,
-      data,
-      getEndpoint,
-      getUsername
-    })
-  };
-
-  callback(null, response);
-
-
-  //checks and validates the parameters and the data
-  /*if (!user.id || !form.id || !Object.keys(data).length) {
-    console.error("Validation Failed");
-    callback(null, {
-      statusCode: 400,
-      headers: { "Content-Type": "text/plain" },
-      body: "Could not execute, missing fields..."
-    });
-    return;
-  }
-  //checks if the form accepts data
-  if (form.isDisabled) {
-    console.error("Validation Failed");
-    callback(null, {
-      statusCode: 400,
-      headers: { "Content-Type": "text/plain" },
-      body: "This form does not currently accept data."
-    });
-    return;
-  } else {
-    const saveFormDataMutation = `($formId: ID!, $data: [Json!]) {
-        updateForms(id: $formId, data: $data) {
+          //verifies and saves the new data in the form
+          const saveFormDataMutation = `($formId: ID!, $data: [Json!]!) {
+        createContent(formsId: $formId, data: $data) {
           id
         }
       }`;
-
-    const vars = {
-      formId: form.id,
-      data: [data]
-    };
-
-    //saves the data in the DB
-    client
-      .mutate(saveFormDataMutation, vars)
-      .then(resp => {
-        //console.log(resp.newFilm);
-        const response = {
-          statusCode: 200,
-          body: JSON.stringify({
-            userId,
+          const saveFormDataMutationVars = {
             formId,
             data
-          })
-        };
-
-        callback(null, response);
-      })
-      .catch(e => {
-        //sends a error if the data was not saved in the DB
-        callback(null, {
-          statusCode: 400,
-          headers: { "Content-Type": "text/plain" },
-          body: e
+          };
+          //saves the data in the DB
+          client
+            .mutate(saveFormDataMutation, saveFormDataMutationVars)
+            .then(res => {
+              callback(null, {
+                statusCode: 200,
+                body: JSON.stringify({
+                  error: false,
+                  status: 200,
+                  message: "Successfully submitted form."
+                })
+              });
+            })
+            .catch(e => {
+              //sends a error if the data was not saved in the DB
+              callback(null, {
+                statusCode: 400,
+                body: JSON.stringify({
+                  error: true,
+                  status: 400,
+                  message: "Something wrong happened the data was not saved."
+                })
+              });
+            });
+        })
+        .catch(e => {
+          callback(null, {
+            statusCode: 404,
+            body: JSON.stringify({
+              error: true,
+              status: 404,
+              message: "This form does not exist."
+            })
+          });
         });
+    })
+    .catch(e => {
+      callback(null, {
+        statusCode: 404,
+        body: JSON.stringify({
+          error: true,
+          status: 404,
+          message: "This user does not exist."
+        })
       });
-  }*/
+    });
 };
